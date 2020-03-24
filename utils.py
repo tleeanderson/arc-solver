@@ -1,4 +1,5 @@
 from matplotlib import colors, pyplot
+import numpy as np
 
 BLACK = 'k'
 BLUE = 'b'
@@ -11,7 +12,10 @@ ORANGE = '#FFA500'
 CYAN = '#00FFFF'
 MAROON = '#800000'
 
-COLOR_RANGE = range(10)
+def func_reduce(funcs, iv):
+    if len(funcs) <= 0:
+        return iv
+    return func_reduce(funcs[1:], funcs[0](iv))
 
 def display(grid):
     np_g = np.array(grid)

@@ -47,8 +47,7 @@ def merge(regions):
         if all([nr.intersection(set(t)) == set() for t in new_regs]):
             new_regs.add(tuple(nr))
 
-    #ordering is arbitrary, but necessary for equality
-    return sorted([set(t) for t in new_regs], key=lambda s: list(s)[0][0])
+    return [set(t) for t in new_regs]
 
 def merge_regions(all_regs):
     return {pv: merge(regs) for pv, regs in all_regs.items()}
@@ -57,8 +56,16 @@ def object_cohesion(in_grid):
     grid = np.asarray(in_grid)
     seeds = stoch_seed_sprinkle(grid)
     regs = merge_regions(grow_regions(regions(grid, seeds), grid))
-    prev_regs = None
-    while prev_regs != regs:
+    prev_regs = {}
+    sot = lambda m: {pv: {tuple(sorted(r)) for r in m[pv]} for pv in m}
+    while sot(prev_regs) != sot(regs):
         prev_regs = regs
-        regs = merge_regions(grow_regions(regs, grid))
-    return regs
+        regs = sot(merge_regions(grow_regions(regs, grid)))
+
+    #invariant: np.prod(grid) == sum of pixels in regs
+    return regs, np.prod(grid.shape)
+
+def obj_ratio_per_color(obj_coh):
+    pv_regs, _ = obj_coh
+    pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in pv_regs.items()}
+    return sorted(pr.items(), key=lambda t: t[1])
