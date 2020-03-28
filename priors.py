@@ -47,20 +47,19 @@ def merge(regions):
         if all([nr.intersection(set(t)) == set() for t in new_regs]):
             new_regs.add(tuple(nr))
 
-    return [set(t) for t in new_regs]
+    return {frozenset(t) for t in new_regs}
 
 def merge_regions(all_regs):
     return {pv: merge(regs) for pv, regs in all_regs.items()}
 
 def object_cohesion(in_grid):
-    grid = np.asarray(in_grid)
+    grid = np.asarray(in_grid, dtype=np.uint8)
     seeds = stoch_seed_sprinkle(grid)
     regs = merge_regions(grow_regions(regions(grid, seeds), grid))
     prev_regs = {}
-    sot = lambda m: {pv: {tuple(sorted(r)) for r in m[pv]} for pv in m}
-    while sot(prev_regs) != sot(regs):
+    while prev_regs != regs:
         prev_regs = regs
-        regs = sot(merge_regions(grow_regions(regs, grid)))
+        regs = merge_regions(grow_regions(regs, grid))
 
     #invariant: np.prod(grid) == sum of pixels in regs
     return regs, np.prod(grid.shape)
@@ -69,3 +68,44 @@ def obj_ratio_per_color(obj_coh):
     pv_regs, _ = obj_coh
     pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in pv_regs.items()}
     return sorted(pr.items(), key=lambda t: t[1])
+
+def edge_points(grid, obj):
+    ef = min, lambda t: t[1]
+    wf = max, lambda t: t[1]
+    nf = min, lambda t: t[0]
+    sf = max, lambda t: t[0]
+    east, west, north, south = [fs[0](obj, key=fs[1]) for fs in (ef, wf, nf, sf)]
+
+    return (north, south, east, west)
+
+def intersect(gw, gh, p1, p1_axis, p2):
+    p2_axis = (not p1_axis) * 1
+    consts = (p1[p1_axis], p2[p2_axis]) if p1_axis == 0 else (p2[p2_axis], p1[p1_axis])
+    h = {(consts[0], n) for n in range(gw)}
+    v = {(n, consts[1]) for n in range(gh)}
+
+    #invariant: |h.intersection(v)| == 1
+    p = tuple(h.intersection(v))
+    return p[0] if len(p) > 0 else set()
+
+def corners(grid, obj):
+    n, s, e, w = edge_points(grid, obj)
+    width, height = grid.shape[1], grid.shape[0]
+    tl = intersect(width, height, n, 0, e)
+    bl = intersect(width, height, s, 0, e)
+    br = intersect(width, height, s, 0, w)
+    tr = intersect(width, height, n, 0, w)
+
+    return (tl, bl, br, tr)
+
+def rectangle_overlay(grid, obj):
+    tl, _, br, _ = corners(grid, obj)
+    rectangle = frozenset(reduce(lambda l1, l2: l1 + l2, \
+                               [[(r, c) for c in range(tl[1], br[1] + 1)] \
+                                              for r in range(tl[0], br[0] + 1)]))
+    return rectangle
+
+def rect_overlay_score(grid, obj_coh):
+    oc, _ = obj_coh
+    return {pv: [len(r) / len(rectangle_overlay(data, r)) for r in regs] \
+            for pv, regs in oc.items()}
