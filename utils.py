@@ -33,3 +33,17 @@ def display(grid):
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     pyplot.show()
+
+def test_data(width, height, num_objs, background=0):
+    data = np.random.randint(0, 10, width*height).reshape((width, height)) if background == 1 \
+           else np.zeros((width, height))
+    colors = np.random.choice(10, num_objs, replace=False)
+
+    for c in colors:
+        sr = np.random.randint(1, height // 2)
+        er = np.random.randint(height // 2 + 1, height)
+        sc = np.random.randint(1, width // 2)
+        ec = np.random.randint(width // 2 + 1, width)
+        data[sr:er, sc:ec] = c
+
+    return data

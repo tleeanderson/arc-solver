@@ -52,6 +52,10 @@ def merge(regions):
 def merge_regions(all_regs):
     return {pv: merge(regs) for pv, regs in all_regs.items()}
 
+def list_of_objects(obj_coh):
+    return reduce(lambda l1, l2: l1 + l2, [[{'points': o, 'color': pv} for o in objs] \
+                                    for pv, objs in obj_coh.items()])
+
 def object_cohesion(in_grid):
     grid = np.asarray(in_grid, dtype=np.uint8)
     seeds = stoch_seed_sprinkle(grid)
@@ -64,7 +68,7 @@ def object_cohesion(in_grid):
     #invariant: np.prod(grid) == sum of pixels in regs
     return regs, np.prod(grid.shape)
 
-def obj_ratio_per_color(obj_coh):
+def obj_ratio_per_color(obj_coh: dict):
     pv_regs, _ = obj_coh
     pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in pv_regs.items()}
     return sorted(pr.items(), key=lambda t: t[1])
@@ -105,7 +109,9 @@ def rectangle_overlay(grid, obj):
                                               for r in range(tl[0], br[0] + 1)]))
     return rectangle
 
-def rect_overlay_score(grid, obj_coh):
-    oc, _ = obj_coh
-    return {pv: [len(r) / len(rectangle_overlay(data, r)) for r in regs] \
-            for pv, regs in oc.items()}
+def rect_overlay_score(grid, obj_list: list):
+    for obj in obj_list:
+        score = len(obj['points']) / len(rectangle_overlay(grid, obj['points']))
+        obj.update({'rect_overlay': score})
+
+    return obj_list
