@@ -75,6 +75,13 @@ def object_cohesion(in_grid):
 def pixel_count(obj_coh: dict):
     return {pv: sum([len(o) for o in objs]) for pv, objs in obj_coh.items()}
 
+def num_pixels(obj_coh: dict):
+    return sum(pixel_count(obj_coh).values())
+
+def pixel_percent(obj_coh: dict):
+    npx = num_pixels(obj_coh)
+    return {pv: sum([len(o) for o in objs]) / npx for pv, objs in obj_coh.items()}
+
 def pixel_count_desc(pixel_count: dict):
     return sorted(pixel_count.items(), key=lambda t: t[1], reverse=True)
 

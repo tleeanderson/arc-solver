@@ -1,5 +1,6 @@
 from matplotlib import colors, pyplot
 import numpy as np
+import priors
 
 BLACK = 'k'
 BLUE = 'b'
@@ -47,3 +48,26 @@ def test_data(width, height, num_objs, background=0):
         data[sr:er, sc:ec] = c
 
     return data
+
+def object_cohesion(inputs, outputs):
+    return [[priors.object_cohesion(i) for i in ds] for ds in (inputs, outputs)]
+
+def num_objs(inp_coh, out_coh):
+    return [[priors.num_objs(oc) for oc in ds] for ds in (inp_coh, out_coh)]
+
+def pixel_count(inp_coh, out_coh):
+    return [[priors.pixel_count(oc) for oc in ds] for ds in (inp_coh, out_coh)]
+
+def pixel_count_desc(inp_coh, out_coh):
+    return [[priors.pixel_count_desc(oc) for oc in ds] for ds in (inp_coh, out_coh)]
+
+def single_object_outputs(cohs):
+    _, o = num_objs(cohs, cohs)
+    return set(o) == {1}
+
+def get_dims(image: list):
+    return np.asarray(image).shape
+
+def image_list_shapes(image_list):
+    return [get_dims(i) for i in image_list]
+
