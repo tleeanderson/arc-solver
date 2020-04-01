@@ -66,11 +66,23 @@ def object_cohesion(in_grid):
         regs = merge_regions(grow_regions(regs, grid))
 
     #invariant: np.prod(grid) == sum of pixels in regs
-    return regs, np.prod(grid.shape)
+    return regs
+
+# def pixel_count_desc(obj_coh: dict):
+#     return sorted([(pv, sum([len(o) for o in objs])) for pv, objs in oc.items()],
+#                   key=lambda t: t[1], reverse=True)
+
+def pixel_count(obj_coh: dict):
+    return {pv: sum([len(o) for o in objs]) for pv, objs in obj_coh.items()}
+
+def pixel_count_desc(pixel_count: dict):
+    return sorted(pixel_count.items(), key=lambda t: t[1], reverse=True)
+
+def num_objs(obj_coh: dict):
+    return sum([len(objs) for _, objs in obj_coh.items()])
 
 def obj_ratio_per_color(obj_coh: dict):
-    pv_regs, _ = obj_coh
-    pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in pv_regs.items()}
+    pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in obj_coh.items()}
     return sorted(pr.items(), key=lambda t: t[1])
 
 def edge_points(grid, obj):

@@ -6,6 +6,9 @@ import json
 import glob
 import numpy as np
 from functools import partial
+import priors
+import perception
+import pattern_recognition as pr
 
 ARC_PATH = '/home/tanderson/git/ARC/'
 ARC_TRAIN = 'data/training'
@@ -36,21 +39,20 @@ def read_tasks(task_paths):
     return {path.basename(tp): read_file(tp) for tp in task_paths}
 
 def predict(tasks, program):
-    c = 0
     for task, task_data in tasks.items():
-        c += 1
-        print("task: {}, num: {}".format(task, c))
-        for ds, data in task_data.items():
-            for task_demo in data:
-                for f in program:
-                    o1 = f(task_demo['input'])
-                    o2 = f(task_demo['output'])
-                    print("input: {}\noutput:{}".format(o1, o2))
-        print("")
+        train_input = [td['input'] for td in task_data['train']]
+        train_output = [td['output'] for td in task_data['train']]
+
+        test_input = [td['input'] for td in task_data['test']]
+        predict_output = pr.alike_pixel_numbers(train_input, train_output, test_input)
+        test_output = [td['output'] for td in task_data['test']]
+
+        preds = [pred == gt for pred, gt in zip(predict_output, test_output)]
+        print("task: {}, preds: {}".format(task, preds))
 
 if __name__ == '__main__':
     args = parse_args()
     task_path = path.join(*[args.arc_path, args.data_path])
     tasks = read_tasks(glob.glob(path.join(task_path, args.task_pattern)))
     predict(tasks, program=[partial(utils.func_reduce,
-                                    [priors.object_cohesion, priors.obj_ratio_per_color])])
+                                    [priors.object_cohesion])])
