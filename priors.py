@@ -1,5 +1,5 @@
 import numpy as np
-from itertools import product
+import itertools
 import random
 from functools import reduce
 
@@ -14,7 +14,7 @@ def valid_point(r, c, rl, cl):
 
 def eight_conn(p: tuple, grid, fc=lambda x: True):
     rl, cl = grid.shape
-    return {(r, c) for r, c in (np.asarray(list(product((0, 1, -1), repeat=2))) + p) \
+    return {(r, c) for r, c in (np.asarray(list(itertools.product((0, 1, -1), repeat=2))) + p) \
             if valid_point(r, c, rl, cl) and fc(grid[r][c])}
 
 def grow(region, grid):
@@ -67,10 +67,6 @@ def object_cohesion(in_grid):
 
     #invariant: np.prod(grid) == sum of pixels in regs
     return regs
-
-# def pixel_count_desc(obj_coh: dict):
-#     return sorted([(pv, sum([len(o) for o in objs])) for pv, objs in oc.items()],
-#                   key=lambda t: t[1], reverse=True)
 
 def pixel_count(obj_coh: dict):
     return {pv: sum([len(o) for o in objs]) for pv, objs in obj_coh.items()}
@@ -134,3 +130,41 @@ def rect_overlay_score(grid, obj_list: list):
         obj.update({'rect_overlay': score})
 
     return obj_list
+
+def shift_object(obj, gr, gc, xs, ys):
+    shift = frozenset({(x + xs, y + ys) for x, y in obj if valid_point(x + xs, y + ys, gr, gc)})
+    return shift if len(shift) == len(obj) else obj
+
+def shift_object_to_border(obj, gr, gc, shift_func):
+    prev = obj
+    curr = shift_func(obj, gr, gc)
+    while prev != curr:
+        prev = curr
+        curr = shift_func(curr, gr, gc)
+    return curr
+
+def shift_object_left(obj, gr, gc):
+    return shift_object(obj, gr, gc, 0, -1)
+
+def shift_object_up(obj, gr, gc):
+    return shift_object(obj, gr, gc, -1, 0)
+
+def shift_object_top_left(obj, gr, gc):
+    left = shift_object_to_border(obj, gr, gc, shift_object_left)
+    return shift_object_to_border(left, gr, gc, shift_object_up)
+
+def object_equals(o1, o2, gr, gc):
+    return len(o1) == len(o2) and \
+        shift_object_top_left(o1, gr, gc) == shift_object_top_left(o2, gr, gc)
+
+def group_objects(obj_coh: dict, gr, gc, bg=0):
+    nbg_oc = {pv: obj_coh[pv] for pv in set(obj_coh.keys()).difference({bg})}
+    if len(nbg_oc) == 0:
+        return {}
+    else:
+        obj_list = reduce(lambda l1, l2: l1 + l2, 
+                          [[(pv, o, shift_object_top_left(o, gr, gc)) for o in objs] \
+                           for pv, objs in nbg_oc.items()])
+        sobj = sorted(obj_list, key=lambda t: t[2])
+        return {k: tuple([(e[0], e[1]) for e in g]) \
+                for k, g in itertools.groupby(sobj, key=lambda t: t[2])}
