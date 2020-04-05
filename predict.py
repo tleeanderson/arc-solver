@@ -43,11 +43,12 @@ def predict(tasks):
         train_output = [td['output'] for td in task_data['train']]
 
         test_input = [td['input'] for td in task_data['test']]
-        program = pr.unique_object(train_input, train_output)
+        program = pr.majority_color_assoc(train_input, train_output)
 
-        pred = utils.func_reduce(program, test_input[0])
+        preds = [utils.func_reduce(program, ti) for ti in test_input]
         test_output = [td['output'] for td in task_data['test']]
-        preds = [np.all(pred == gt) for pred, gt in zip([pred], test_output)]
+
+        preds = [np.all(pred == gt) for pred, gt in zip(preds, test_output)]
 
         print("task: {}, preds: {}".format(task, preds))
 

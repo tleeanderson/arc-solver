@@ -76,7 +76,8 @@ def num_pixels(obj_coh: dict):
 
 def pixel_percent(obj_coh: dict):
     npx = num_pixels(obj_coh)
-    return {pv: sum([len(o) for o in objs]) / npx for pv, objs in obj_coh.items()}
+    return {pv: sum([len(o) for o in objs]) / npx for pv, objs in obj_coh.items()} \
+        if npx > 0 else {pv: 0 for pv, _ in obj_coh.items()}
 
 def pixel_count_desc(pixel_count: dict):
     return sorted(pixel_count.items(), key=lambda t: t[1], reverse=True)
@@ -157,8 +158,11 @@ def object_equals(o1, o2, gr, gc):
     return len(o1) == len(o2) and \
         shift_object_top_left(o1, gr, gc) == shift_object_top_left(o2, gr, gc)
 
-def group_objects(obj_coh: dict, gr, gc, bg=0):
-    nbg_oc = {pv: obj_coh[pv] for pv in set(obj_coh.keys()).difference({bg})}
+def remove_background(obj_coh: dict, bg=0):
+    return {pv: obj_coh[pv] for pv in set(obj_coh.keys()).difference({bg})}
+
+def group_objects(obj_coh: dict, gr, gc):
+    nbg_oc = remove_background(obj_coh)
     if len(nbg_oc) == 0:
         return {}
     else:
