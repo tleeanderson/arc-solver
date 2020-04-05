@@ -8,6 +8,7 @@ import numpy as np
 from functools import partial
 import priors
 import pattern_recognition as pr
+import inspect
 
 ARC_PATH = '/home/tanderson/git/ARC/'
 ARC_TRAIN = 'data/training'
@@ -43,7 +44,8 @@ def predict(tasks):
         train_output = [td['output'] for td in task_data['train']]
 
         test_input = [td['input'] for td in task_data['test']]
-        program = pr.majority_color_assoc(train_input, train_output)
+        pat_funcs = [m[1] for m in inspect.getmembers(pr) if inspect.isfunction(m[1])]
+        program = [prg for prg in [pf(train_input, train_output) for pf in pat_funcs] if prg][0]
 
         preds = [utils.func_reduce(program, ti) for ti in test_input]
         test_output = [td['output'] for td in task_data['test']]
