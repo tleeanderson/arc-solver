@@ -2,6 +2,7 @@ import numpy as np
 import itertools
 import random
 from functools import reduce
+import scipy.stats
 
 def stoch_seed_sprinkle(grid, coverage=1):
     r, c = np.indices(grid.shape)
@@ -12,10 +13,16 @@ def stoch_seed_sprinkle(grid, coverage=1):
 def valid_point(r, c, rl, cl):
     return r > -1 and r < rl and c > -1 and c < cl
 
-def eight_conn(p: tuple, grid, fc=lambda x: True):
+def eight_conn(p: tuple, grid, fc):
+    return neighborhood(p, grid, list(itertools.product((0, 1, -1), repeat=2)), fc)
+
+def four_conn(p: tuple, grid):
+    return neighborhood(p, gird, ((0, 1), (1, 0), (0, -1), (-1, 0)))
+
+def neighborhood(p: tuple, grid, nbrhood, fc=lambda x: True):
     rl, cl = grid.shape
-    return {(r, c) for r, c in (np.asarray(list(itertools.product((0, 1, -1), repeat=2))) + p) \
-            if valid_point(r, c, rl, cl) and fc(grid[r][c])}
+    return {(r, c) for r, c in (np.asarray(nbrhood) + p) \
+            if valid_point(r, c, rl, cl) and fc(grid[r][c])}    
 
 def grow(region, grid):
     result = set()
@@ -90,8 +97,8 @@ def obj_ratio_per_color(obj_coh: dict):
     return sorted(pr.items(), key=lambda t: t[1])
 
 def edge_points(grid, obj):
-    ef = min, lambda t: t[1]
-    wf = max, lambda t: t[1]
+    ef = max, lambda t: t[1]
+    wf = min, lambda t: t[1]
     nf = min, lambda t: t[0]
     sf = max, lambda t: t[0]
     east, west, north, south = [fs[0](obj, key=fs[1]) for fs in (ef, wf, nf, sf)]
@@ -111,11 +118,10 @@ def intersect(gw, gh, p1, p1_axis, p2):
 def corners(grid, obj):
     n, s, e, w = edge_points(grid, obj)
     width, height = grid.shape[1], grid.shape[0]
-    tl = intersect(width, height, n, 0, e)
-    bl = intersect(width, height, s, 0, e)
-    br = intersect(width, height, s, 0, w)
-    tr = intersect(width, height, n, 0, w)
-
+    tl = intersect(width, height, n, 0, w)
+    bl = intersect(width, height, s, 0, w)
+    br = intersect(width, height, s, 0, e)
+    tr = intersect(width, height, n, 0, e)
     return (tl, bl, br, tr)
 
 def rectangle_overlay(grid, obj):
@@ -172,3 +178,62 @@ def group_objects(obj_coh: dict, gr, gc):
         sobj = sorted(obj_list, key=lambda t: t[2])
         return {k: tuple([(e[0], e[1]) for e in g]) \
                 for k, g in itertools.groupby(sobj, key=lambda t: t[2])}
+
+def object_distance(o1: frozenset, o2: frozenset):
+    """objects must be distinct and in each others 4 connected path"""
+    row, col = lambda t: t[0], lambda t: t[1]
+    dict_from_gs = lambda gs, sf: {k: sorted(g, key=sf) for k, g in gs}
+    block_dist = lambda o1, o2, ax: \
+                 min(abs(o1[0][ax] - o2[-1][ax]), abs(o1[-1][ax] - o2[0][ax])) - 1
+
+    o1_rgs = dict_from_gs(itertools.groupby(sorted(o1, key=row), key=row), col)
+    o2_rgs = dict_from_gs(itertools.groupby(sorted(o2, key=row), key=row), col)
+    o1_cgs = dict_from_gs(itertools.groupby(sorted(o1, key=col), key=col), row)
+    o2_cgs = dict_from_gs(itertools.groupby(sorted(o2, key=col), key=col), row)
+
+    ri, ci = frozenset(o1_rgs.keys()).intersection(o2_rgs.keys()), \
+             frozenset(o1_cgs.keys()).intersection(o2_cgs.keys())
+    inters = [(o1p, o2p, ks, diff_ax) for o1p, o2p, ks, diff_ax in \
+              ((o1_rgs, o2_rgs, ri, 1), (o1_cgs, o2_cgs, ci, 0)) if ks]
+    
+    dist = min({ax: min({k: block_dist(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values()) \
+                 for o1_pix, o2_pix, int_ks, ax in inters}.values()) if inters else 0
+    return dist
+
+def objects_by_distance(obj_piece, objs: set):
+    last = lambda t: t[1]
+    dists = sorted([(o, object_distance(obj_piece, o)) for o in objs], key=last)
+    defined_dists = [(o, d) for o, d in dists if d > 0]
+    comp_dists = defined_dists if defined_dists else dists
+    return (dists, min(comp_dists, key=last), max(comp_dists, key=last))
+
+def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
+
+    def merge_pieces(select_func, objs, merged, dists, deviations=2):
+        if objs == set():
+            return (merged, dists)
+        elif len(objs) == 1:
+            return (merged.union(objs), dists)
+        else:
+            first = select_func(objs)
+            rest = objs.difference({first})
+            _, no, _ = objects_by_distance(first, rest)
+            nearest, d = no
+            ds = dists + [d]
+
+            if d == 0 or (len(set(ds)) > 1 and scipy.stats.zscore(ds)[-1] > deviations):
+                return merge_pieces(select_func, rest, merged.union({first}), dists)
+            else:
+                return merge_pieces(select_func, rest.difference({nearest}), 
+                                    merged.union({first.union(nearest)}), [d] + dists)
+
+    def merge(objs):
+        select_obj = lambda objs: frozenset(sorted([sorted(o) for o in objs])[0])
+        prev_mrg = None
+        curr_mrg, ds = merge_pieces(select_obj, objs, set(), [])
+        while prev_mrg != curr_mrg:
+            prev_mrg = curr_mrg
+            curr_mrg, ds = merge_pieces(select_obj, prev_mrg, set(), ds)
+        return curr_mrg
+
+    return {pv: merge(objs) for pv, objs in rm_bgrd_func(obj_coh).items()}

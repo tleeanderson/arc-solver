@@ -5,6 +5,10 @@ import numpy as np
 import dsl
 import itertools
 
+def gap_filling(train_input, train_output):
+    """4612dd53"""
+    
+
 def majority_color_assoc(train_input, train_output):
     """d4469b4b"""
     input_cohs, output_cohs = utils.func_on_iters(priors.object_cohesion, train_input, train_output)

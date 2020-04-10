@@ -39,20 +39,33 @@ def read_tasks(task_paths):
     return {path.basename(tp): read_file(tp) for tp in task_paths}
 
 def predict(tasks):
+    answers = {}
+    c = 0
+    pattern_funcs = [m[1] for m in inspect.getmembers(pr) if inspect.isfunction(m[1])]
     for task, task_data in tasks.items():
         train_input = [td['input'] for td in task_data['train']]
         train_output = [td['output'] for td in task_data['train']]
 
-        test_input = [td['input'] for td in task_data['test']]
-        pat_funcs = [m[1] for m in inspect.getmembers(pr) if inspect.isfunction(m[1])]
-        program = [prg for prg in [pf(train_input, train_output) for pf in pat_funcs] if prg][0]
+        programs = [prg for prg in [pf(train_input, train_output) for pf in pattern_funcs] if prg]
+        if programs:
+            test_input = [td['input'] for td in task_data['test']]
+            test_output = [td['output'] for td in task_data['test']]
 
-        preds = [utils.func_reduce(program, ti) for ti in test_input]
-        test_output = [td['output'] for td in task_data['test']]
+            result = any([all([np.all(utils.func_reduce(p, ti) == to) for ti, to \
+                           in zip(test_input, test_output)]) for p in programs])
+            answers[task] = (len(programs), result)
 
-        preds = [np.all(pred == gt) for pred, gt in zip(preds, test_output)]
+        c += 1
+        if c % 10 == 0:
+            print("On task {} of 400".format(c))
 
-        print("task: {}, preds: {}".format(task, preds))
+    for t, a in answers.items():
+        num_progs, res = a
+        print("task: {}, ({}, {})".format(t, num_progs, res))
+
+    corr = sum([r for _, r in answers.values()])
+    print("Total answers: {}, correct: {}, incorrect: {}"\
+              .format(len(answers), corr, len(answers) - corr))
 
 if __name__ == '__main__':
     args = parse_args()
