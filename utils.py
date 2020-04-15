@@ -48,3 +48,11 @@ def func_on_iters(func, *iterables):
 def func_on_iters_mapf(func, map_func, *iterables):
     return [[func(*map_func(e)) for e in it] for it in iterables]
 
+def color_gaps(grid, gap_col, gap_obj_coh: dict):
+    for pv, objs in gap_obj_coh.items():
+        rcs = [list(zip(*g)) for _, g in test_gaps[1]]
+        for rs, cs in rcs:
+            grid[rs, cs] = gap_col
+
+    return grid
+        

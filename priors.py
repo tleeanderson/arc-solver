@@ -1,8 +1,9 @@
 import numpy as np
 import itertools
 import random
-from functools import reduce
+import functools
 import scipy.stats
+import operator
 
 def stoch_seed_sprinkle(grid, coverage=1):
     r, c = np.indices(grid.shape)
@@ -13,21 +14,23 @@ def stoch_seed_sprinkle(grid, coverage=1):
 def valid_point(r, c, rl, cl):
     return r > -1 and r < rl and c > -1 and c < cl
 
-def eight_conn(p: tuple, grid, fc):
-    return neighborhood(p, grid, list(itertools.product((0, 1, -1), repeat=2)), fc)
-
-def four_conn(p: tuple, grid):
-    return neighborhood(p, gird, ((0, 1), (1, 0), (0, -1), (-1, 0)))
-
-def neighborhood(p: tuple, grid, nbrhood, fc=lambda x: True):
+def neighborhood(p: tuple, grid, nbrhood, pix_func=lambda x: True):
     rl, cl = grid.shape
     return {(r, c) for r, c in (np.asarray(nbrhood) + p) \
-            if valid_point(r, c, rl, cl) and fc(grid[r][c])}    
+            if valid_point(r, c, rl, cl) and pix_func(grid[r][c])}
+
+def eight_conn(p: tuple, grid, constraint_func):
+    return neighborhood(p, grid, list(itertools.product((0, 1, -1), repeat=2)), 
+                        constraint_func)
+
+def four_conn(p: tuple, grid, constraint_func):
+    return neighborhood(p, grid, ((0, 1), (1, 0), (0, -1), (-1, 0)), 
+                        constraint_func)
 
 def grow(region, grid):
     result = set()
     for r, c in region:
-        result = result.union(eight_conn((r, c), grid, lambda x: x == grid[r][c]))
+        result = result.union(eight_conn((r, c), grid, lambda pix: pix == grid[r][c]))
     return result
 
 def regions(grid, seeds):
@@ -49,7 +52,7 @@ def merge(regions):
             inter = regions[i].intersection(regions[j])
             if inter != set():
                 unions.append(regions[i].union(regions[j]))
-        nr = reduce(lambda s1, s2: s1.union(s2), unions) if unions \
+        nr = functools.reduce(lambda s1, s2: s1.union(s2), unions) if unions \
              else regions[i]
         if all([nr.intersection(set(t)) == set() for t in new_regs]):
             new_regs.add(tuple(nr))
@@ -60,7 +63,7 @@ def merge_regions(all_regs):
     return {pv: merge(regs) for pv, regs in all_regs.items()}
 
 def list_of_objects(obj_coh):
-    return reduce(lambda l1, l2: l1 + l2, [[{'points': o, 'color': pv} for o in objs] \
+    return functools.reduce(lambda l1, l2: l1 + l2, [[{'points': o, 'color': pv} for o in objs] \
                                     for pv, objs in obj_coh.items()])
 
 def object_cohesion(in_grid):
@@ -96,7 +99,7 @@ def obj_ratio_per_color(obj_coh: dict):
     pr = {pv: len(regs) / sum([len(r) for r in regs]) for pv, regs in obj_coh.items()}
     return sorted(pr.items(), key=lambda t: t[1])
 
-def edge_points(grid, obj):
+def edge_points(obj):
     ef = max, lambda t: t[1]
     wf = min, lambda t: t[1]
     nf = min, lambda t: t[0]
@@ -116,7 +119,7 @@ def intersect(gw, gh, p1, p1_axis, p2):
     return p[0] if len(p) > 0 else set()
 
 def corners(grid, obj):
-    n, s, e, w = edge_points(grid, obj)
+    n, s, e, w = edge_points(obj)
     width, height = grid.shape[1], grid.shape[0]
     tl = intersect(width, height, n, 0, w)
     bl = intersect(width, height, s, 0, w)
@@ -126,7 +129,7 @@ def corners(grid, obj):
 
 def rectangle_overlay(grid, obj):
     tl, _, br, _ = corners(grid, obj)
-    rectangle = frozenset(reduce(lambda l1, l2: l1 + l2, \
+    rectangle = frozenset(functools.reduce(lambda l1, l2: l1 + l2, \
                                [[(r, c) for c in range(tl[1], br[1] + 1)] \
                                               for r in range(tl[0], br[0] + 1)]))
     return rectangle
@@ -172,19 +175,30 @@ def group_objects(obj_coh: dict, gr, gc):
     if len(nbg_oc) == 0:
         return {}
     else:
-        obj_list = reduce(lambda l1, l2: l1 + l2, 
+        obj_list = functools.reduce(lambda l1, l2: l1 + l2, 
                           [[(pv, o, shift_object_top_left(o, gr, gc)) for o in objs] \
                            for pv, objs in nbg_oc.items()])
         sobj = sorted(obj_list, key=lambda t: t[2])
         return {k: tuple([(e[0], e[1]) for e in g]) \
                 for k, g in itertools.groupby(sobj, key=lambda t: t[2])}
 
+def points_between(p1, p2, ax):
+    p1_first = range(p1[ax]+1, p2[ax])
+    p2_first = range(p2[ax]+1, p1[ax])
+    if p1_first or p2_first:
+        rng = p1_first if p1_first else p2_first
+        return frozenset([(v, p1[1]) for v in rng]) if ax == 0 \
+            else frozenset([(p1[0], v) for v in rng])
+    else:
+        return []
+
 def object_distance(o1: frozenset, o2: frozenset):
     """objects must be distinct and in each others 4 connected path"""
     row, col = lambda t: t[0], lambda t: t[1]
     dict_from_gs = lambda gs, sf: {k: sorted(g, key=sf) for k, g in gs}
-    block_dist = lambda o1, o2, ax: \
-                 min(abs(o1[0][ax] - o2[-1][ax]), abs(o1[-1][ax] - o2[0][ax])) - 1
+    points = lambda o1, o2, ax: \
+             min([(len(pb), pb) for pb in [points_between(arg1, arg2, ax) for arg1, arg2 \
+                                       in ((o1[0], o2[-1]), (o1[-1], o2[0]))]], key=lambda t: t[0])
 
     o1_rgs = dict_from_gs(itertools.groupby(sorted(o1, key=row), key=row), col)
     o2_rgs = dict_from_gs(itertools.groupby(sorted(o2, key=row), key=row), col)
@@ -196,16 +210,19 @@ def object_distance(o1: frozenset, o2: frozenset):
     inters = [(o1p, o2p, ks, diff_ax) for o1p, o2p, ks, diff_ax in \
               ((o1_rgs, o2_rgs, ri, 1), (o1_cgs, o2_cgs, ci, 0)) if ks]
     
-    dist = min({ax: min({k: block_dist(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values()) \
-                 for o1_pix, o2_pix, int_ks, ax in inters}.values()) if inters else 0
+    dist = min({ax: min({k: points(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values(), key=lambda t: t[0]) \
+                for o1_pix, o2_pix, int_ks, ax in inters}.values(), key=lambda t: t[0]) if inters else (0, [])
     return dist
 
 def objects_by_distance(obj_piece, objs: set):
-    last = lambda t: t[1]
-    dists = sorted([(o, object_distance(obj_piece, o)) for o in objs], key=last)
-    defined_dists = [(o, d) for o, d in dists if d > 0]
-    comp_dists = defined_dists if defined_dists else dists
-    return (dists, min(comp_dists, key=last), max(comp_dists, key=last))
+    ob_dist = lambda t: t[1][0]
+    return {d: list(os) for d, os in itertools.groupby(sorted([(o, object_distance(obj_piece, o)) \
+                                                     for o in objs], key=ob_dist), key=ob_dist)}
+
+def sorted_distances(obj_dists: dict):
+    defined_dists = sorted(obj_dists.keys() - {0})
+    comp_dists = defined_dists if defined_dists else obj_dists.keys()
+    return tuple(functools.reduce(lambda l1, l2: l1 + l2, [obj_dists[d] for d in comp_dists]))
 
 def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
 
@@ -217,8 +234,9 @@ def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
         else:
             first = select_func(objs)
             rest = objs.difference({first})
-            _, no, _ = objects_by_distance(first, rest)
-            nearest, d = no
+            no = sorted_distances(objects_by_distance(first, rest))[0]
+            nearest, ps_d = no
+            d, _ = ps_d
             ds = dists + [d]
 
             if d == 0 or (len(set(ds)) > 1 and scipy.stats.zscore(ds)[-1] > deviations):
@@ -237,3 +255,87 @@ def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
         return curr_mrg
 
     return {pv: merge(objs) for pv, objs in rm_bgrd_func(obj_coh).items()}
+
+def end_points(obj):
+    n, s, e, w = edge_points(obj)
+    point_axis = ((n, 0, lambda v: n[0] > v),
+                  (s, 0, lambda v: s[0] < v),
+                  (e, 1, lambda v: e[1] < v), 
+                  (w, 1, lambda v: w[1] > v))
+
+    return {(p, ax, f) for p, ax, f in point_axis if sum([1 for op in obj.difference({p}) \
+                                                          if op[ax] == p[ax]]) == 0}
+
+def gaps_by_endpoint(obj_piece, objs):
+    sorted_dists = sorted_distances(objects_by_distance(obj_piece, objs))
+    end_ps = end_points(obj_piece)
+    first = lambda t: t[0]
+    all_gaps = sorted(functools.reduce(lambda s1, s2: s1 + s2, 
+                                       [[(ep, d_ps[0], d_ps[1]) for ob, d_ps in sorted_dists \
+                                         if all([cf(op[ax]) for op in ob])] for ep, ax, cf in end_ps]), key=first)
+    def_gaps = {k: sorted(g, key=lambda t: t[1]) for k, g in itertools.groupby(all_gaps, key=first)}
+    undef_gaps = {(ep, ax, f) for ep, ax, f in end_ps if ep not in def_gaps.keys()}
+    return def_gaps, undef_gaps
+
+def object_bounds(obj: set):
+    sing_obj = functools.reduce(lambda s1, s2: s1.union(s2), obj)
+    n, s, e, w = edge_points(sing_obj)
+    return (range(n[0], s[0]+1), range(w[1], e[1]+1))
+
+def pix_axis(pix: tuple, obj: set):
+    pr, pc = pix
+    sing_obj = functools.reduce(lambda s1, s2: s1.union(s2), obj)
+    n, s, e, w = edge_points(sing_obj)
+    rs = range(n[0], s[0]+1)
+    cs = range(w[1], e[1]+1)
+
+    return max([(len(pixs.intersection(sing_obj)), ax) for pixs, ax in \
+                (({(pr, c) for c in cs}, 0), ({(r, pc) for r in rs}, 1))], key=lambda t: t[0])[1]
+
+def gaps(obj):
+
+    def traverse_obj(obj, obj_bs, in_between, traveled):
+        if obj.difference(traveled) == set():
+            return in_between
+        else:
+            first = next(iter(obj.difference(traveled)))
+            rest = obj.difference({first})
+            gpe, undef_gpe = gaps_by_endpoint(first, rest)
+            if len(first) == 1:
+                p = next(iter(first))
+                pa = pix_axis(p, obj)
+                #invariant: len(gpe) == 1 == len(first)
+                between = [ps for _, _, ps in gpe[next(iter(gpe))] if all([bp[pa] == p[pa] for bp in ps])]
+            else:
+                bet = {lis[0][2] for ep, lis in gpe.items()}
+                len_bs = [len(b) for b in obj_bs]
+                enum_args = lambda ax, p: ([p[not ax]]*len_bs[ax], obj_bs[ax]) if ax \
+                            else (obj_bs[ax], [p[not ax]]*len_bs[ax])
+                eps = {frozenset(functools.reduce(lambda s1, s2: s1.union(s2),
+                                       [{op for op in zip(*enum_args(ax, p)) if f(op[ax])} \
+                                        for p, ax, f in undef_gpe]) if undef_gpe else {})}
+                between = bet.union(eps)
+
+            ib_ps = functools.reduce(lambda s1, s2: s1.union(s2), between)
+            return traverse_obj(obj, obj_bs, in_between.union(ib_ps), traveled.union({first}))
+
+    bounds = object_bounds(obj)
+    sing_obj = functools.reduce(lambda s1, s2: s1.union(s2), obj)
+    corners = {cp for cp in ((min(bounds[0]), min(bounds[1])), (max(bounds[0]), min(bounds[1])), 
+                             (min(bounds[0]), max(bounds[1])), (max(bounds[0]), max(bounds[1]))) \
+               if cp not in sing_obj}
+    gap_points = traverse_obj(obj, bounds, frozenset(), frozenset())
+    return gap_points.union(corners).difference(sing_obj)
+
+def object_gaps(grp_obj_coh: dict):
+    nbg_coh = remove_background(grp_obj_coh)
+    return {pv: {(o, gaps(o)) for o in objs} for pv, objs in nbg_coh.items()}
+
+def group_pieces(obj: set, obj_pieces: set):
+    pcs = {piece for piece in obj_pieces if all([p in obj for p in piece])}
+    pcs_obj = functools.reduce(lambda s1, s2: s1.union(s2), pcs)
+    return frozenset(pcs) if pcs_obj == obj else None
+
+def group_object_cohesion(object_coh: dict, sparse_object_coh: dict):
+    #invariant: group_pieces != None because sparse_object_coh groups object_coh
+    return {pv: {group_pieces(o, object_coh[pv]) for o in objs} for pv, objs in sparse_object_coh.items()}

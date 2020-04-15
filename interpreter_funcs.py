@@ -1,6 +1,8 @@
 import priors
 import json
 from matplotlib import colors, pyplot
+import numpy as np
+import utils
 
 BLACK = 'k'
 BLUE = 'b'
@@ -21,7 +23,7 @@ def color_output(obj_coh: dict, grid: np.array):
     i = 0
     for _, objs in nbg.items():
         for o in objs:
-            rs, cs = pairs_to_indicies(o)
+            rs, cs = utils.pairs_to_indicies(o)
             new_grid[rs, cs] = colors[i]
             i += 1
 
@@ -43,7 +45,6 @@ def four_image():
     four_input = four_input.reshape((r * four_input.shape[0], c))
     sparse_coh = priors.sparse_object_cohesion(priors.object_cohesion(four_input))
 
-    
     color_image = np.zeros(four_input.shape)
     color_image = color_output(sparse_coh, color_image)
     

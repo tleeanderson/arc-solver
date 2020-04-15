@@ -2,12 +2,20 @@ import utils
 import priors
 import utils
 import numpy as np
+import base_dsl
 import dsl
 import itertools
 
 def gap_filling(train_input, train_output):
     """4612dd53"""
-    
+    input_cohs, output_cohs = utils.func_on_iters(priors.object_cohesion, train_input, train_output)
+    nbg_input, nbg_output = utils.func_on_iters(priors.remove_background, input_cohs, output_cohs)
+    colors = [diff[0] for diff in [list(oc.keys() - ic.keys()) \
+                                       for ic, oc in zip(nbg_input, nbg_output)] if len(diff) == 1]
+    cols = set(colors)
+    if len(colors) == len(train_input) and len(cols) == 1:
+        gap_color = next(iter(cols))
+        return dsl.gap_fill(gap_color)
 
 def majority_color_assoc(train_input, train_output):
     """d4469b4b"""
@@ -26,10 +34,10 @@ def majority_color_assoc(train_input, train_output):
                                                              key=lambda t: t)]
         mult_assoc_per_color = all([len(g) > 1 for g in color_assoc])
         if len(nbg_in_pix_maj) == len(norm_out_objs) and mult_assoc_per_color:
-            possible_answers = {dsl.VAL2: {mip: (op, obj) for mip, op, obj \
+            possible_answers = {base_dsl.VAL2: {mip: (op, obj) for mip, op, obj \
                                            in [list(set(g))[0] for g in color_assoc]}}
-            return (dsl.object_cohesion, dsl.remove_background, dsl.majority_pixel, 
-                    lambda dat_map: {**dat_map, **possible_answers}, dsl.lookup_answer, dsl.single_obj_image)
+            return (base_dsl.convert_value, base_dsl.object_cohesion, base_dsl.remove_background, base_dsl.majority_pixel, 
+                    lambda dat_map: {**dat_map, **possible_answers}, base_dsl.lookup_answer, base_dsl.single_obj_image)
 
 def unique_object(train_input, train_output):
     """88a62173"""
@@ -45,7 +53,7 @@ def unique_object(train_input, train_output):
         iqs, oqs = utils.func_on_iters(lambda l: l[0], inp_uniques, out_uniques)
         inp_unique_in_output = all([inp_uniq[0] == oqs[i] for i, inp_uniq in enumerate(iqs)])
         if inp_unique_in_output:
-            return (dsl.object_cohesion, dsl.group_objects, dsl.unique_object_norm, dsl.single_obj_image)
+            return (base_dsl.convert_value, base_dsl.object_cohesion, base_dsl.group_objects, base_dsl.unique_object_norm, base_dsl.single_obj_image)
 
 def majority(train_input, train_output):
     """5582e5ca"""
@@ -56,4 +64,4 @@ def majority(train_input, train_output):
             maj_inp_pixels = [priors.pixel_count_desc(priors.pixel_percent(oc))[0][0] for oc in input_cohs]
             out_colors = [list(oc.keys())[0] for oc in output_cohs]
             if all([oc == mjip for oc, mjip in zip(out_colors, maj_inp_pixels)]):
-                return (dsl.object_cohesion, dsl.majority_pixel, dsl.create_image)
+                return (base_dsl.convert_value, base_dsl.object_cohesion, base_dsl.majority_pixel, base_dsl.create_image)
