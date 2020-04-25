@@ -222,11 +222,11 @@ def objects_by_distance(obj_piece, objs: set):
 def sorted_distances(obj_dists: dict):
     defined_dists = sorted(obj_dists.keys() - {0})
     comp_dists = defined_dists if defined_dists else obj_dists.keys()
-    return tuple(functools.reduce(lambda l1, l2: l1 + l2, [obj_dists[d] for d in comp_dists]))
+    return tuple(functools.reduce(lambda l1, l2: l1 + l2, [obj_dists[d] for d in comp_dists], []))
 
-def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
+def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background, deviations=2):
 
-    def merge_pieces(select_func, objs, merged, dists, deviations=2):
+    def merge_pieces(select_func, objs, merged, dists, deviations):
         if objs == set():
             return (merged, dists)
         elif len(objs) == 1:
@@ -240,21 +240,21 @@ def sparse_object_cohesion(obj_coh: dict, rm_bgrd_func=remove_background):
             ds = dists + [d]
 
             if d == 0 or (len(set(ds)) > 1 and scipy.stats.zscore(ds)[-1] > deviations):
-                return merge_pieces(select_func, rest, merged.union({first}), dists)
+                return merge_pieces(select_func, rest, merged.union({first}), dists, deviations)
             else:
                 return merge_pieces(select_func, rest.difference({nearest}), 
-                                    merged.union({first.union(nearest)}), [d] + dists)
+                                    merged.union({first.union(nearest)}), [d] + dists, deviations)
 
-    def merge(objs):
+    def merge(objs, deviations):
         select_obj = lambda objs: frozenset(sorted([sorted(o) for o in objs])[0])
         prev_mrg = None
-        curr_mrg, ds = merge_pieces(select_obj, objs, set(), [])
+        curr_mrg, ds = merge_pieces(select_obj, objs, set(), [], deviations=deviations)
         while prev_mrg != curr_mrg:
             prev_mrg = curr_mrg
-            curr_mrg, ds = merge_pieces(select_obj, prev_mrg, set(), ds)
+            curr_mrg, ds = merge_pieces(select_obj, prev_mrg, set(), ds, deviations=deviations)
         return curr_mrg
 
-    return {pv: merge(objs) for pv, objs in rm_bgrd_func(obj_coh).items()}
+    return {pv: merge(objs, deviations) for pv, objs in rm_bgrd_func(obj_coh).items()}
 
 def end_points(obj):
     n, s, e, w = edge_points(obj)
@@ -272,7 +272,7 @@ def gaps_by_endpoint(obj_piece, objs):
     first = lambda t: t[0]
     all_gaps = sorted(functools.reduce(lambda s1, s2: s1 + s2, 
                                        [[(ep, d_ps[0], d_ps[1]) for ob, d_ps in sorted_dists \
-                                         if all([cf(op[ax]) for op in ob])] for ep, ax, cf in end_ps]), key=first)
+                                         if all([cf(op[ax]) for op in ob])] for ep, ax, cf in end_ps], []), key=first)
     def_gaps = {k: sorted(g, key=lambda t: t[1]) for k, g in itertools.groupby(all_gaps, key=first)}
     undef_gaps = {(ep, ax, f) for ep, ax, f in end_ps if ep not in def_gaps.keys()}
     return def_gaps, undef_gaps
@@ -301,22 +301,23 @@ def gaps(obj):
             first = next(iter(obj.difference(traveled)))
             rest = obj.difference({first})
             gpe, undef_gpe = gaps_by_endpoint(first, rest)
-            if len(first) == 1:
-                p = next(iter(first))
-                pa = pix_axis(p, obj)
-                #invariant: len(gpe) == 1 == len(first)
-                between = [ps for _, _, ps in gpe[next(iter(gpe))] if all([bp[pa] == p[pa] for bp in ps])]
-            else:
-                bet = {lis[0][2] for ep, lis in gpe.items()}
-                len_bs = [len(b) for b in obj_bs]
-                enum_args = lambda ax, p: ([p[not ax]]*len_bs[ax], obj_bs[ax]) if ax \
-                            else (obj_bs[ax], [p[not ax]]*len_bs[ax])
-                eps = {frozenset(functools.reduce(lambda s1, s2: s1.union(s2),
-                                       [{op for op in zip(*enum_args(ax, p)) if f(op[ax])} \
-                                        for p, ax, f in undef_gpe]) if undef_gpe else {})}
-                between = bet.union(eps)
+            between = frozenset()
+            if gpe:
+                if len(first) == 1:
+                    p = next(iter(first))
+                    pa = pix_axis(p, obj)
+                    between = [ps for _, _, ps in gpe[next(iter(gpe))] if all([bp[pa] == p[pa] for bp in ps])]
+                else:
+                    bet = {lis[0][2] for ep, lis in gpe.items()}
+                    len_bs = [len(b) for b in obj_bs]
+                    enum_args = lambda ax, p: ([p[not ax]]*len_bs[ax], obj_bs[ax]) if ax \
+                                else (obj_bs[ax], [p[not ax]]*len_bs[ax])
+                    eps = {frozenset(functools.reduce(lambda s1, s2: s1.union(s2),
+                                           [{op for op in zip(*enum_args(ax, p)) if f(op[ax])} \
+                                            for p, ax, f in undef_gpe]) if undef_gpe else {})}
+                    between = bet.union(eps)
 
-            ib_ps = functools.reduce(lambda s1, s2: s1.union(s2), between)
+            ib_ps = functools.reduce(lambda s1, s2: s1.union(s2), between, frozenset())
             return traverse_obj(obj, obj_bs, in_between.union(ib_ps), traveled.union({first}))
 
     bounds = object_bounds(obj)

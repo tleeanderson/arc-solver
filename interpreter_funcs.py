@@ -60,10 +60,10 @@ def four_image():
 
     return color_image
 
-def sample_image(ind=0):
+def sample_image(ind=0, tr_tst='train'):
     with open('../ARC/data/training/4612dd53.json', 'r') as f:
         tasks = json.load(f)
-        data = tasks['train'][ind]['input']
+        data = tasks[tr_tst][ind]['input']
         return np.asarray(data, dtype=np.uint8), priors.object_cohesion(data)
 
 def display(grid):
