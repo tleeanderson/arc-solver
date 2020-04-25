@@ -1,4 +1,6 @@
+test_file.py
 __pycache__
 *.pyc
 *.log
 junk
+test.py

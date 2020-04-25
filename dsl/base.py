@@ -1,6 +1,7 @@
 import priors
 import numpy as np
 import utils
+import interpreter_funcs as int_funcs
 
 GRID = 'grid'
 VAL = 'val'
@@ -13,9 +14,29 @@ def object_cohesion(dat_map):
     in_grid = dat_map[GRID]
     return {GRID: in_grid, VAL: priors.object_cohesion(in_grid)}
 
+def list_of_objects(dat_map):
+    in_grid = dat_map[GRID]
+    oc = dat_map[VAL]
+    return {GRID: in_grid, VAL: priors.list_of_objects(oc), VAL2: oc}
+
 def sparse_object_cohesion(dat_map):
     oc = dat_map[VAL]
     return {GRID: dat_map[GRID], VAL: priors.sparse_object_cohesion(oc)}
+
+def sparse_and_object_cohesion(dat_map):
+    in_grid = dat_map[GRID]
+    oc = priors.object_cohesion(in_grid)
+    devs = dat_map[VAL]
+    return {GRID: in_grid, VAL: oc, VAL2: priors.sparse_object_cohesion(oc, deviations=devs)}
+
+def group_object_cohesion(dat_map):
+    oc = dat_map[VAL]
+    sc = dat_map[VAL2]
+    return {GRID: dat_map[GRID], VAL: priors.group_object_cohesion(oc, sc)}
+
+def object_gaps(dat_map):
+    gc = dat_map[VAL]
+    return {GRID: dat_map[GRID], VAL: priors.object_gaps(gc)}
 
 def group_objects(dat_map):
     in_grid = dat_map[GRID]
@@ -74,4 +95,10 @@ def create_image(dat_map):
     img[:] = pv
     return np.ndarray.tolist(img)
 
+def color_gaps(dat_map):
+    in_grid = dat_map[GRID]
+    ogs = dat_map[VAL]
+    gap_col = dat_map[VAL2]
+    out = np.ndarray.tolist(utils.color_gaps(in_grid, gap_col, ogs))
+    return out
 

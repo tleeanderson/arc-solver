@@ -33,7 +33,7 @@ def read_tasks(task_paths):
 def predict(tasks):
     answers = {}
     c = 0
-    pattern_funcs = [m[1] for m in inspect.getmembers(pr) if inspect.isfunction(m[1])]
+    pattern_funcs = file_funcs(pr)
     for task, task_data in tasks.items():
         train_input = [td['input'] for td in task_data['train']]
         train_output = [td['output'] for td in task_data['train']]
