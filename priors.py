@@ -137,8 +137,8 @@ def rect_overlay_score(grid, obj_list: list):
 
     return obj_list
 
-def shift_object(obj, gr, gc, xs, ys):
-    shift = frozenset({(x + xs, y + ys) for x, y in obj if valid_point(x + xs, y + ys, gr, gc)})
+def shift_object(obj, gr, gc, rs, cs):
+    shift = frozenset({(r + rs, c + cs) for r, c in obj if valid_point(r + rs, c + cs, gr, gc)})
     return shift if len(shift) == len(obj) else obj
 
 def shift_object_to_border(obj, gr, gc, shift_func):
@@ -174,8 +174,10 @@ def remove_background(obj_coh: dict, bg=0):
 
 def list_of_objects(obj_coh):
     nbg_coh = remove_background(obj_coh)
-    return functools.reduce(lambda l1, l2: l1 + l2, [[(pv, o) for o in objs] \
-                                    for pv, objs in nbg_coh.items()])
+    all_os = functools.reduce(lambda l1, l2: l1 + l2, [[(pv, o) for o in objs] \
+                                    for pv, objs in nbg_coh.items()], [])
+    return [(pv, frozenset(o)) for pv, o \
+            in sorted([(pv, sorted(o)) for pv, o in all_os], key=lambda t: t[1])]
 
 def object_cohesion_from_list(obj_coh: list):
     return {k: set([pixs for _, pixs in g]) for k, g in \

@@ -2,7 +2,6 @@ import priors
 import cache
 import utils
 import numpy as np
-import interpreter_funcs as int_funcs
 
 def one_to_one_diff(in_img1, in_img2):
     img1, img2 = [np.asarray(im) for im in (in_img1, in_img2)]
@@ -14,3 +13,6 @@ def one_to_one_diff(in_img1, in_img2):
         return sum([sum([cache.overlap_distance(o1, o2) for o1, o2 in zip(im1_os, im2_os)]) \
                     for im1_os, im2_os in [(utils.path_value(kp, grp_im1), 
                                             utils.path_value(kp, grp_im2)) for kp in kps_im1]])
+
+def percent_not_matching(in_img1, in_img2):
+    return np.sum(in_img1 != in_img2) / np.size(in_img1)
