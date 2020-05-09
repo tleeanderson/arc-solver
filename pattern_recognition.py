@@ -2,8 +2,7 @@ import utils
 import priors
 import utils
 import numpy as np
-import base_dsl
-import dsl
+import dsl.extended
 import itertools
 
 def gap_filling_10(train_input, train_output):
@@ -15,19 +14,18 @@ def gap_filling_10(train_input, train_output):
     cols = set(colors)
     if len(colors) == len(train_input) and len(cols) == 1:
         gap_color = next(iter(cols))
-        return dsl.gap_fill(gap_color, 10)
+        return dsl.extended.gap_fill(gap_color, 10)
 
-def gap_filling_1(train_input, train_output):
-    """4612dd53"""
-    input_cohs, output_cohs = utils.func_on_iters(priors.object_cohesion, train_input, train_output)
-    nbg_input, nbg_output = utils.func_on_iters(priors.remove_background, input_cohs, output_cohs)
-    colors = [diff[0] for diff in [list(oc.keys() - ic.keys()) \
-                                       for ic, oc in zip(nbg_input, nbg_output)] if len(diff) == 1]
-    cols = set(colors)
-    if len(colors) == len(train_input) and len(cols) == 1:
-        gap_color = next(iter(cols))
-        return dsl.gap_fill(gap_color, 2)
-
+# def gap_filling_1(train_input, train_output):
+#     """4612dd53"""
+#     input_cohs, output_cohs = utils.func_on_iters(priors.object_cohesion, train_input, train_output)
+#     nbg_input, nbg_output = utils.func_on_iters(priors.remove_background, input_cohs, output_cohs)
+#     colors = [diff[0] for diff in [list(oc.keys() - ic.keys()) \
+#                                        for ic, oc in zip(nbg_input, nbg_output)] if len(diff) == 1]
+#     cols = set(colors)
+#     if len(colors) == len(train_input) and len(cols) == 1:
+#         gap_color = next(iter(cols))
+#         return dsl.base.gap_fill(gap_color, 2)
 
 # def majority_color_assoc(train_input, train_output):
 #     """d4469b4b"""

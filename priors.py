@@ -62,10 +62,6 @@ def merge(regions):
 def merge_regions(all_regs):
     return {pv: merge(regs) for pv, regs in all_regs.items()}
 
-def list_of_objects(obj_coh):
-    return functools.reduce(lambda l1, l2: l1 + l2, [[{'points': o, 'color': pv} for o in objs] \
-                                    for pv, objs in obj_coh.items()])
-
 def object_cohesion(in_grid):
     grid = np.asarray(in_grid, dtype=np.uint8)
     seeds = stoch_seed_sprinkle(grid)
@@ -156,8 +152,14 @@ def shift_object_to_border(obj, gr, gc, shift_func):
 def shift_object_left(obj, gr, gc):
     return shift_object(obj, gr, gc, 0, -1)
 
+def shift_object_right(obj, gr, gc):
+    return shift_object(obj, gr, gc, 0, 1)
+
 def shift_object_up(obj, gr, gc):
     return shift_object(obj, gr, gc, -1, 0)
+
+def shift_object_down(obj, gr, gc):
+    return shift_object(obj, gr, gc, 1, 0)
 
 def shift_object_top_left(obj, gr, gc):
     left = shift_object_to_border(obj, gr, gc, shift_object_left)
@@ -170,6 +172,15 @@ def object_equals(o1, o2, gr, gc):
 def remove_background(obj_coh: dict, bg=0):
     return {pv: obj_coh[pv] for pv in set(obj_coh.keys()).difference({bg})}
 
+def list_of_objects(obj_coh):
+    nbg_coh = remove_background(obj_coh)
+    return functools.reduce(lambda l1, l2: l1 + l2, [[(pv, o) for o in objs] \
+                                    for pv, objs in nbg_coh.items()])
+
+def object_cohesion_from_list(obj_coh: list):
+    return {k: set([pixs for _, pixs in g]) for k, g in \
+            itertools.groupby(sorted(obj_coh, key=lambda t: t[0]), key=lambda t: t[0])}
+
 def group_objects(obj_coh: dict, gr, gc):
     nbg_oc = remove_background(obj_coh)
     if len(nbg_oc) == 0:
@@ -179,8 +190,10 @@ def group_objects(obj_coh: dict, gr, gc):
                           [[(pv, o, shift_object_top_left(o, gr, gc)) for o in objs] \
                            for pv, objs in nbg_oc.items()])
         sobj = sorted(obj_list, key=lambda t: t[2])
-        return {k: tuple([(e[0], e[1]) for e in g]) \
+        return {k: {pg: tuple(frozenset(so) for so in sorted([sorted(o) for _, o, _ in pos])) for pg, pos in \
+                    itertools.groupby(sorted(g, key=lambda t: t[0]), key=lambda t: t[0])} \
                 for k, g in itertools.groupby(sobj, key=lambda t: t[2])}
+
 
 def points_between(p1, p2, ax):
     p1_first = range(p1[ax]+1, p2[ax])
@@ -213,6 +226,9 @@ def object_distance(o1: frozenset, o2: frozenset):
     dist = min({ax: min({k: points(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values(), key=lambda t: t[0]) \
                 for o1_pix, o2_pix, int_ks, ax in inters}.values(), key=lambda t: t[0]) if inters else (0, [])
     return dist
+
+def overlap_distance(o1: frozenset, o2: frozenset):
+    return object_distance(o1, o2)[0] + len(o1.difference(o2))
 
 def objects_by_distance(obj_piece, objs: set):
     ob_dist = lambda t: t[1][0]

@@ -14,6 +14,11 @@ def object_cohesion(dat_map):
     in_grid = dat_map[GRID]
     return {GRID: in_grid, VAL: priors.object_cohesion(in_grid)}
 
+def list_of_objects(dat_map):
+    in_grid = dat_map[GRID]
+    oc = dat_map[VAL]
+    return {GRID: in_grid, VAL: priors.list_of_objects(oc), VAL2: oc}
+
 def sparse_object_cohesion(dat_map):
     oc = dat_map[VAL]
     return {GRID: dat_map[GRID], VAL: priors.sparse_object_cohesion(oc)}
