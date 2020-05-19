@@ -17,7 +17,7 @@ ARC_TRAIN = 'data/training'
 
 def run_optimizer(prob_id, train_ins, train_outs, task_data: dict, eval_func):
     start = time.time()
-    program = optimizer.general_program(train_ins, train_outs, cache.one_to_one_diff, prob_id)
+    program = optimizer.general_program(train_ins, train_outs, eval_func, prob_id)
     end = time.time()
     et = round((end-start)*1000)
 
