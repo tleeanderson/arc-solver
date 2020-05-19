@@ -39,17 +39,17 @@ def exec_engine(cache, image, prog, prob_id, eval_toks):
 def exec_cache(image, prog, prob_id, eval_toks):
     return exec_engine(_code_cache, image, prog, prob_id, eval_toks)
 
-def evaluate(image, prog, eval_func, prob_id, eval_toks=(db.sync, db.output)):
+def evaluate(image, prog, eval_func, prob_id, eval_toks=(db.sync_mod_objs, db.output)):
     out = exec_cache(image, prog, prob_id, eval_toks)
     score = eval_func(out[db.OUTPUT])
     return (out, score)
 
-def eval_no_cache(image, prog, eval_func, eval_toks=(db.sync, db.output)):
+def eval_no_cache(image, prog, eval_func, eval_toks=(db.sync_mod_objs, db.output)):
     out = func_reduce(tuple(prog) + eval_toks, image)
     score = eval_func(out[db.OUTPUT])
     return (out, score)
 
-def eval_no_score(image, prog, prob_id, eval_toks=(db.sync, db.output)):
+def eval_no_score(image, prog, prob_id, eval_toks=(db.sync_mod_objs, db.output)):
     return exec_cache(image, prog, prob_id, eval_toks)
 
 def clear_cache():

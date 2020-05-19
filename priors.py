@@ -196,7 +196,6 @@ def group_objects(obj_coh: dict, gr, gc):
                     itertools.groupby(sorted(g, key=lambda t: t[0]), key=lambda t: t[0])} \
                 for k, g in itertools.groupby(sobj, key=lambda t: t[2])}
 
-
 def points_between(p1, p2, ax):
     p1_first = range(p1[ax]+1, p2[ax])
     p2_first = range(p2[ax]+1, p1[ax])
@@ -207,7 +206,7 @@ def points_between(p1, p2, ax):
     else:
         return []
 
-def object_distance(o1: frozenset, o2: frozenset):
+def object_distance(o1: frozenset, o2: frozenset, undef_dist=0):
     """objects must be distinct and in each others 4 connected path"""
     row, col = lambda t: t[0], lambda t: t[1]
     dict_from_gs = lambda gs, sf: {k: sorted(g, key=sf) for k, g in gs}
@@ -226,7 +225,9 @@ def object_distance(o1: frozenset, o2: frozenset):
               ((o1_rgs, o2_rgs, ri, 1), (o1_cgs, o2_cgs, ci, 0)) if ks]
     
     dist = min({ax: min({k: points(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values(), key=lambda t: t[0]) \
-                for o1_pix, o2_pix, int_ks, ax in inters}.values(), key=lambda t: t[0]) if inters else (0, [])
+                for o1_pix, o2_pix, int_ks, ax in inters}.values(), key=lambda t: t[0]) if inters \
+                    else (undef_dist, [])
+
     return dist
 
 def overlap_distance(o1: frozenset, o2: frozenset):

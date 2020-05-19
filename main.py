@@ -1,4 +1,4 @@
-import dev_funcs as dev_funcs
+import dev_funcs
 import time
 import optimizer
 import cache
@@ -11,13 +11,14 @@ import glob
 import utils
 import numpy as np
 import eval_func
+import traceback
 
 ARC_PATH = '/home/tanderson/git/ARC/'
 ARC_TRAIN = 'data/training'
 
 def run_optimizer(prob_id, train_ins, train_outs, task_data: dict, eval_func):
     start = time.time()
-    program = optimizer.general_program(train_ins, train_outs, cache.one_to_one_diff, prob_id)
+    program = optimizer.general_program(train_ins, train_outs, eval_func, prob_id)
     end = time.time()
     et = round((end-start)*1000)
 
@@ -30,8 +31,7 @@ def find_program(prob_id, eval_func, task_data):
 
 def test_program(program, eval_func, task_data):
     test_ins, test_outs = utils.in_out_images(task_data)
-    mem_scores = [(intr.eval_no_cache(i, program, functools.partial(eval_func, o), 
-                                     eval_toks=(db.sync_mod_objs, db.output,)), o) \
+    mem_scores = [(intr.eval_no_cache(i, program, functools.partial(eval_func, o)), o) \
                   for i, o in zip(test_ins, test_outs)]
     outs = [(pred, gt, np.all(pred == gt)) for pred, gt in [(np.ndarray.tolist(ms[0][db.OUTPUT]), o) \
                                                     for ms, o in mem_scores]]
@@ -58,7 +58,9 @@ def solve_tasks(tasks, loud=False):
                       .format(i, task, correct, np.average(ets)))
 
         except Exception as e:
-            print("Exception: {}, task: {}".format(e, task))
+            print("Exception on {} for task: {}".format(i, task))
+            traceback.print_exc()
+            break
 
 def read_tasks(task_paths):
     return {os.path.basename(tp): utils.read_file(tp) for tp in task_paths}

@@ -2,11 +2,17 @@ import numpy as np
 import priors
 import inspect
 import json
+import itertools
+import functools
 
 def read_file(path):
     with open(path, 'r') as f:
         return json.load(f)
     return None
+
+def enumerate_funcs(func, arguments):
+    perms = itertools.product(*[[(an, v) for v in avs] for an, avs in arguments.items()])
+    return [functools.partial(func, **dict(p)) for p in perms]
 
 def in_out_images(task_data):
     return zip(*[(np.asarray(m['input'], dtype=np.uint8), np.asarray(m['output'], dtype=np.uint8)) \
