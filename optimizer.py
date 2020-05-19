@@ -38,7 +38,7 @@ def arg_space(libs, lib_const: dict):
 def general_program(in_images, out_images, eval_func, prob_id):
 
     def evaluate(examples, prog, prob_id):
-        return np.asarray([intr.evaluate(img, prog, ef, prob_id + "_" + str(pid), (db.sync_mod_objs, db.output))[1] \
+        return np.asarray([intr.evaluate(img, prog, ef, prob_id + "_" + str(pid))[1] \
                     for img, _, _, ef, pid in examples])
 
     def traverse(examples, tokens, prog, prob_id):

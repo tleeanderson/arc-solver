@@ -30,8 +30,7 @@ def find_program(prob_id, eval_func, task_data):
 
 def test_program(program, eval_func, task_data):
     test_ins, test_outs = utils.in_out_images(task_data)
-    mem_scores = [(intr.eval_no_cache(i, program, functools.partial(eval_func, o), 
-                                     eval_toks=(db.sync_mod_objs, db.output,)), o) \
+    mem_scores = [(intr.eval_no_cache(i, program, functools.partial(eval_func, o)), o) \
                   for i, o in zip(test_ins, test_outs)]
     outs = [(pred, gt, np.all(pred == gt)) for pred, gt in [(np.ndarray.tolist(ms[0][db.OUTPUT]), o) \
                                                     for ms, o in mem_scores]]
