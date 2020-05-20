@@ -11,6 +11,7 @@ import glob
 import utils
 import numpy as np
 import eval_func
+import traceback
 
 ARC_PATH = '/home/tanderson/git/ARC/'
 ARC_TRAIN = 'data/training'
@@ -57,7 +58,9 @@ def solve_tasks(tasks, loud=False):
                       .format(i, task, correct, np.average(ets)))
 
         except Exception as e:
-            print("Exception: {}, task: {}".format(e, task))
+            print("Exception on {} for task: {}".format(i, task))
+            traceback.print_exc()
+            break
 
 def read_tasks(task_paths):
     return {os.path.basename(tp): utils.read_file(tp) for tp in task_paths}

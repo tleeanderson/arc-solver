@@ -61,7 +61,7 @@ def general_program(in_images, out_images, eval_func, prob_id):
                 for i, o, pid in zip(*[in_images, out_images, range(len(in_images))])]
     pvs = functools.reduce(set.union, [set(priors.remove_background(oc)) for _, _, oc, _, _ in examples])
     filt_pvs = pvs if pvs else range(10)
-    lib_const = {dg: {dg.binary_func: {'filt_func1': {'v': lambda v: v in filt_pvs},
+    lib_const = {dg: {dg.general_func: {'filt_func1': {'v': lambda v: v in filt_pvs},
                                  'filt_func2': {'v': lambda v: v in filt_pvs}}}}
     filt_as = arg_space([dg], lib_const)
     tokens = token_space(filt_as)
