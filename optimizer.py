@@ -9,13 +9,9 @@ import dsl.general as dg
 import numpy as np
 import priors
 
-def enumerate_funcs(func, arguments):
-    perms = itertools.product(*[[(an, v) for v in avs] for an, avs in arguments.items()])
-    return [functools.partial(func, **dict(p)) for p in perms]
-
 def token_space(lib_const: dict):
     flatten = lambda lis: functools.reduce(lambda l1, l2: l1 + l2, lis, [])
-    return flatten([flatten([enumerate_funcs(f, lib_const[lib][f]) for f in sfs]) for lib, sfs \
+    return flatten([flatten([utils.enumerate_funcs(f, lib_const[lib][f]) for f in sfs]) for lib, sfs \
                                               in [(l, utils.file_funcs(l)) for l in lib_const]])
 
 def filter_func_space(fs, func_const: dict):
@@ -62,7 +58,7 @@ def general_program(in_images, out_images, eval_func, prob_id):
     pvs = functools.reduce(set.union, [set(priors.remove_background(oc)) for _, _, oc, _, _ in examples])
     filt_pvs = pvs if pvs else range(10)
     lib_const = {dg: {dg.general_func: {'filt_func1': {'v': lambda v: v in filt_pvs},
-                                 'filt_func2': {'v': lambda v: v in filt_pvs}}}}
+                                        'filt_func2': {'v': lambda v: v in filt_pvs}}}}
     filt_as = arg_space([dg], lib_const)
     tokens = token_space(filt_as)
     prog = [db.init_grid, db.object_cohesion, db.list_of_objects]

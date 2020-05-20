@@ -227,6 +227,7 @@ def object_distance(o1: frozenset, o2: frozenset):
     
     dist = min({ax: min({k: points(o1_pix[k], o2_pix[k], ax) for k in int_ks}.values(), key=lambda t: t[0]) \
                 for o1_pix, o2_pix, int_ks, ax in inters}.values(), key=lambda t: t[0]) if inters else (0, [])
+
     return dist
 
 def overlap_distance(o1: frozenset, o2: frozenset):
