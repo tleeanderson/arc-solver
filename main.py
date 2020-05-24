@@ -21,6 +21,8 @@ def run_optimizer(prob_id, train_ins, train_outs, task_data: dict, eval_func):
     program = optimizer.general_program(train_ins, train_outs, eval_func, prob_id)
     end = time.time()
     et = round((end-start)*1000)
+    cache.clear()
+    intr.clear_cache()
 
     return program, et
 

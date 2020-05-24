@@ -53,4 +53,5 @@ def eval_no_score(image, prog, prob_id, eval_toks=(db.sync_mod_objs, db.output))
     return exec_cache(image, prog, prob_id, eval_toks)
 
 def clear_cache():
+    global _code_cache
     _code_cache = {}
